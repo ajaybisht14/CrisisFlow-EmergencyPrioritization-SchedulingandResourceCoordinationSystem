@@ -11,16 +11,13 @@ public class Allocation {
 
     private static final int TIMEOUT_MINUTES = 10;
     private static ScheduledExecutorService scheduler;
-
-    // Start the automatic release checker once
     public static synchronized void startAutoReleaseScheduler() {
 
-        if (scheduler != null && !scheduler.isShutdown()) {
+        if(scheduler != null&& !scheduler.isShutdown()) {
             return;
         }
-
         scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "CrisisFlow-Resource-Release");
+            Thread t = new Thread(r,"CrisisFlow-Resource-Release");
             t.setDaemon(true);
             return t;
         });
@@ -31,13 +28,11 @@ public class Allocation {
                 30,
                 TimeUnit.SECONDS
         );
-
         System.out.println(
                 "Automatic resource release enabled: "
                 + TIMEOUT_MINUTES + "-minute timeout."
         );
     }
-
     // Assign one available resource to an emergency
     public static boolean assignResource(int emergencyId, int typeId) {
 
@@ -220,7 +215,6 @@ public class Allocation {
             } else {
                 status = "Pending";
             }
-
             try (Connection statusCon = Database.getConnection();
                  PreparedStatement update =
                          statusCon.prepareStatement(updateStatus)) {
