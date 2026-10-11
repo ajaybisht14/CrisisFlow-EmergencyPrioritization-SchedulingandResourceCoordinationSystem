@@ -1,4 +1,3 @@
-
 CREATE DATABASE IF NOT EXISTS crisisflow_v2;
 USE crisisflow_v2;
 
