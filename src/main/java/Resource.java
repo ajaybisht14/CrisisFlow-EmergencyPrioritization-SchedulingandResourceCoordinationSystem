@@ -56,14 +56,14 @@ public class Resource {
              PreparedStatement ps = con.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
 
-            System.out.println("\n========== RESOURCE INVENTORY ==========");
+            System.out.println("\n========== RESOURCE INVENTORY ===========");
 
             boolean found = false;
 
             while (rs.next()) {
                 found = true;
 
-                System.out.println("------------------------------");
+                System.out.println("-------------------------------");
                 System.out.println(
                         "Resource ID: " + rs.getInt("resource_id")
                 );
