@@ -378,4 +378,44 @@ public class Allocation {
             );
         }
     }
+    
+public static void allocatePendingAutomatically() {
+
+    String sql =
+            "SELECT emergency_id FROM emergencies "
+            + "WHERE allocation_status = 'Pending' "
+            + "AND response_status IN ('Reported', 'Responding') "
+            + "ORDER BY CASE priority "
+            + "WHEN 'CRITICAL' THEN 1 "
+            + "WHEN 'HIGH' THEN 2 "
+            + "WHEN 'MEDIUM' THEN 3 "
+            + "ELSE 4 END, reported_at ASC, emergency_id ASC";
+
+    java.util.List<Integer> pendingIds = new java.util.ArrayList<>();
+
+    try (Connection con = Database.getConnection();
+         PreparedStatement ps = con.prepareStatement(sql);
+         ResultSet rs = ps.executeQuery()) {
+
+        while (rs.next()) {
+            pendingIds.add(rs.getInt("emergency_id"));
+        }
+
+    } catch (SQLException e) {
+        System.out.println("Could not retrieve pending emergencies: "
+                + e.getMessage());
+        return;
+    }
+
+    if (pendingIds.isEmpty()) {
+        System.out.println("No pending emergencies need allocation.");
+        return;
+    }
+
+    for (int emergencyId : pendingIds) {
+        System.out.println("\nProcessing pending emergency...");
+        allocateAutomatically(emergencyId);
+    }
+}
+
 }

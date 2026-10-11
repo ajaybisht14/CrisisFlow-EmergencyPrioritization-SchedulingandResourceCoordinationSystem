@@ -1,16 +1,19 @@
+
 import java.util.Scanner;
 
 public class Main {
 
     public static void main(String[] args) {
+
         Allocation.startAutoReleaseScheduler();
+
         Scanner sc = new Scanner(System.in);
         int choice = 0;
 
         do {
             System.out.println("\n========== CRISISFLOW ==========");
             System.out.println("1. Register Emergency");
-            System.out.println("2. Allocate Resources Automatically");
+            System.out.println("2. Allocate Pending Resources Automatically");
             System.out.println("3. View All Emergencies");
             System.out.println("4. Register New Resource");
             System.out.println("5. View All Resources");
@@ -29,6 +32,7 @@ public class Main {
 
             switch (choice) {
 
+                // Register an emergency and optionally allocate resources
                 case 1: {
                     System.out.print(
                             "Enter disaster type "
@@ -52,7 +56,9 @@ public class Main {
                     if (peopleAffected <= 0
                             || type.isEmpty()
                             || location.isEmpty()) {
-                        System.out.println("Invalid input. Please try again.");
+                        System.out.println(
+                                "Invalid input. Please try again."
+                        );
                         break;
                     }
 
@@ -62,33 +68,39 @@ public class Main {
                     String description = sc.nextLine().trim();
 
                     Emergency.register(
-                            type, location, peopleAffected, description
+                            type,
+                            location,
+                            peopleAffected,
+                            description,
+                            sc
                     );
+
                     break;
                 }
 
+                // Automatically retry pending emergency allocations
                 case 2: {
-                    System.out.print("Enter Emergency ID: ");
-
-                    while (!sc.hasNextInt()) {
-                        System.out.print("Enter a valid emergency ID: ");
-                        sc.next();
-                    }
-
-                    int emergencyId = sc.nextInt();
-                    sc.nextLine();
-
-                    Allocation.allocateAutomatically(emergencyId);
+                    Allocation.allocatePendingAutomatically();
                     break;
                 }
 
-                case 3:
+                // View all emergencies
+                case 3: {
                     Emergency.viewEmergencies();
                     break;
+                }
 
+                // Register a new resource
                 case 4: {
                     System.out.print("Enter resource name: ");
                     String name = sc.nextLine().trim();
+
+                    if (name.isEmpty()) {
+                        System.out.println(
+                                "Resource name cannot be empty."
+                        );
+                        break;
+                    }
 
                     System.out.println("\nResource Types:");
                     System.out.println("1. Ambulance");
@@ -106,7 +118,9 @@ public class Main {
                     sc.nextLine();
 
                     if (typeId < 1 || typeId > 4) {
-                        System.out.println("Invalid resource type ID.");
+                        System.out.println(
+                                "Invalid resource type ID."
+                        );
                         break;
                     }
 
@@ -120,19 +134,40 @@ public class Main {
                     int capacity = sc.nextInt();
                     sc.nextLine();
 
+                    if (capacity <= 0) {
+                        System.out.println(
+                                "Capacity must be greater than zero."
+                        );
+                        break;
+                    }
+
                     System.out.print("Enter resource location: ");
                     String resourceLocation = sc.nextLine().trim();
 
+                    if (resourceLocation.isEmpty()) {
+                        System.out.println(
+                                "Resource location cannot be empty."
+                        );
+                        break;
+                    }
+
                     Resource.registerResource(
-                            name, typeId, capacity, resourceLocation
+                            name,
+                            typeId,
+                            capacity,
+                            resourceLocation
                     );
+
                     break;
                 }
 
-                case 5:
+                // View all resources
+                case 5: {
                     Resource.viewResources();
                     break;
+                }
 
+                // Update resource status
                 case 6: {
                     Resource.viewResources();
 
@@ -146,6 +181,7 @@ public class Main {
                     int resourceId = sc.nextInt();
                     sc.nextLine();
 
+                    System.out.println("\nAvailable status options:");
                     System.out.println("1. Available");
                     System.out.println("2. Out of Service");
                     System.out.print("Choose new status: ");
@@ -165,20 +201,27 @@ public class Main {
                     } else if (statusChoice == 2) {
                         newStatus = "Out of Service";
                     } else {
-                        System.out.println("Invalid status choice.");
+                        System.out.println(
+                                "Invalid status choice."
+                        );
                         break;
                     }
 
                     Resource.updateResourceStatus(
-                            resourceId, newStatus
+                            resourceId,
+                            newStatus
                     );
+
                     break;
                 }
 
+                // Update emergency response status
                 case 7: {
                     Emergency.viewEmergencies();
 
-                    System.out.print("\nEnter Emergency ID to update: ");
+                    System.out.print(
+                            "\nEnter Emergency ID to update: "
+                    );
 
                     while (!sc.hasNextInt()) {
                         System.out.print("Enter a valid emergency ID: ");
@@ -203,7 +246,7 @@ public class Main {
                     int statusChoice = sc.nextInt();
                     sc.nextLine();
 
-                    // Initialize the variable to prevent compilation errors.
+                    
                     String newStatus = "";
 
                     switch (statusChoice) {
@@ -232,25 +275,34 @@ public class Main {
                         break;
                     }
 
+
                     System.out.print(
                             "Enter update notes (or press Enter to skip): "
                     );
                     String notes = sc.nextLine().trim();
 
                     Emergency.updateResponseStatus(
-                            emergencyId, newStatus, notes
+                            emergencyId,
+                            newStatus,
+                            notes
+                    );
+
+                    break;
+                }
+
+                // Exit
+                case 8: {
+                    System.out.println(
+                            "Exiting CrisisFlow. Stay safe!"
                     );
                     break;
                 }
 
-                case 8:
-                    System.out.println("Exiting CrisisFlow. Stay safe!");
-                    break;
-
-                default:
+                default: {
                     System.out.println(
                             "Invalid choice. Please select 1 to 8."
                     );
+                }
             }
 
         } while (choice != 8);

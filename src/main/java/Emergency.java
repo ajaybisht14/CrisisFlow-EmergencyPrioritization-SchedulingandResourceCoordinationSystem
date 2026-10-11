@@ -1,7 +1,9 @@
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Scanner;
 
 public class Emergency {
 
@@ -10,133 +12,172 @@ public class Emergency {
             String type,
             String location,
             int peopleAffected,
-            String description) {
+            String description,
+            Scanner sc) {
 
-        String priority = Rules.calculatePriority(type, peopleAffected);
+        String normalizedType = Rules.normalizeEmergencyType(type);
+
+        if (normalizedType == null) {
+            System.out.println("Invalid emergency type.");
+            return false;
+        }
+
+        if (location == null || location.trim().isEmpty()
+                || peopleAffected <= 0) {
+            System.out.println("Invalid emergency details.");
+            return false;
+        }
+
+        String priority =
+                Rules.calculatePriority(normalizedType, peopleAffected);
 
         String sql = "INSERT INTO emergencies "
                 + "(disaster_type, location, people_affected, description, "
                 + "priority, allocation_status, response_status) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+                + "VALUES (?, ?, ?, ?, ?, 'Pending', 'Reported')";
 
-        try (
-            Connection con = Database.getConnection();
-            PreparedStatement ps = con.prepareStatement(sql)
-        ) {
-            ps.setString(1, type);
-            ps.setString(2, location);
+        try (Connection con = Database.getConnection();
+             PreparedStatement ps = con.prepareStatement(
+                     sql, java.sql.Statement.RETURN_GENERATED_KEYS)) {
+
+            ps.setString(1, normalizedType);
+            ps.setString(2, location.trim());
             ps.setInt(3, peopleAffected);
-            ps.setString(4, description);
+            ps.setString(4,
+                    description == null ? "" : description.trim());
             ps.setString(5, priority);
-            ps.setString(6, "Pending");
-            ps.setString(7, "Reported");
 
-            int rows = ps.executeUpdate();
-
-            if (rows > 0) {
-                System.out.println("Emergency registered successfully!");
-                System.out.println("Calculated priority: " + priority);
-                return true;
+            if (ps.executeUpdate() == 0) {
+                System.out.println("Emergency registration failed.");
+                return false;
             }
 
-        } catch (SQLException e) {
-            System.out.println(
-                    "Could not register emergency: " + e.getMessage()
-            );
-        }
+            int emergencyId;
 
-        return false;
+            try (ResultSet keys = ps.getGeneratedKeys()) {
+                if (!keys.next()) {
+                    System.out.println(
+                            "Emergency saved, but ID was not returned.");
+                    return false;
+                }
+
+                emergencyId = keys.getInt(1);
+            }
+
+            System.out.println("\nEmergency registered successfully!");
+            System.out.println("Emergency ID: " + emergencyId);
+            System.out.println("Calculated priority: " + priority);
+
+            String answer;
+
+            while (true) {
+                System.out.print("Allocate resources now? (Y/N): ");
+                answer = sc.nextLine().trim();
+
+                if (answer.equalsIgnoreCase("Y")
+                        || answer.equalsIgnoreCase("N")) {
+                    break;
+                }
+
+                System.out.println("Please enter Y or N.");
+            }
+
+            if (answer.equalsIgnoreCase("Y")) {
+                Allocation.allocateAutomatically(emergencyId);
+            } else {
+                System.out.println(
+                        "Emergency saved. Resource allocation is pending.");
+            }
+
+            return true;
+
+        } catch (SQLException e) {
+            System.out.println("Could not register emergency: "
+                    + e.getMessage());
+            return false;
+        }
     }
 
-    // Display all registered emergencies
+    // View all emergencies
     public static void viewEmergencies() {
 
         String sql = "SELECT emergency_id, disaster_type, location, "
                 + "people_affected, priority, allocation_status, "
                 + "response_status, reported_at "
-                + "FROM emergencies ORDER BY "
-                + "CASE priority "
-                + "WHEN 'CRITICAL' THEN 1 "
-                + "WHEN 'HIGH' THEN 2 "
-                + "WHEN 'MEDIUM' THEN 3 "
-                + "ELSE 4 END, reported_at";
+                + "FROM emergencies ORDER BY reported_at DESC";
 
-        try (
-            Connection con = Database.getConnection();
-            PreparedStatement ps = con.prepareStatement(sql);
-            ResultSet rs = ps.executeQuery()
-        ) {
-            System.out.println("\n========== EMERGENCY RECORDS ==========");
+        try (Connection con = Database.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            System.out.println("\n========== EMERGENCY LIST ==========");
 
             boolean found = false;
 
             while (rs.next()) {
                 found = true;
 
-                System.out.println("\n------------------------------");
-                System.out.println("Emergency ID: "
-                        + rs.getInt("emergency_id"));
-                System.out.println("Type: "
-                        + rs.getString("disaster_type"));
-                System.out.println("Location: "
-                        + rs.getString("location"));
-                System.out.println("People Affected: "
+                System.out.println("------------------------------------");
+                System.out.println("ID: " + rs.getInt("emergency_id"));
+                System.out.println("Type: " + rs.getString("disaster_type"));
+                System.out.println("Location: " + rs.getString("location"));
+                System.out.println("People affected: "
                         + rs.getInt("people_affected"));
-                System.out.println("Priority: "
-                        + rs.getString("priority"));
+                System.out.println("Priority: " + rs.getString("priority"));
                 System.out.println("Allocation: "
                         + rs.getString("allocation_status"));
-                System.out.println("Response: "
+                System.out.println("Response status: "
                         + rs.getString("response_status"));
-                System.out.println("Reported At: "
+                System.out.println("Reported at: "
                         + rs.getTimestamp("reported_at"));
             }
 
             if (!found) {
-                System.out.println("No emergencies registered yet.");
+                System.out.println("No emergencies found.");
             }
 
+            System.out.println("====================================");
+
         } catch (SQLException e) {
-            System.out.println(
-                    "Could not retrieve emergencies: " + e.getMessage()
-            );
+            System.out.println("Could not retrieve emergencies: "
+                    + e.getMessage());
         }
     }
 
-    // Update response status and record the change in history
-    public static void updateResponseStatus(
+    // Update an emergency's response status
+    public static boolean updateResponseStatus(
             int emergencyId,
             String newStatus,
-            String notes) {
+            String remarks) {
 
-        if (newStatus == null
-                || !(newStatus.equalsIgnoreCase("Reported")
-                || newStatus.equalsIgnoreCase("Responding")
-                || newStatus.equalsIgnoreCase("Resolved")
-                || newStatus.equalsIgnoreCase("Cancelled"))) {
-
-            System.out.println(
-                    "Invalid status. Use Reported, Responding, "
-                    + "Resolved, or Cancelled."
-            );
-            return;
+        if (emergencyId <= 0 || newStatus == null) {
+            System.out.println("Invalid emergency details.");
+            return false;
         }
+
+        newStatus = newStatus.trim();
+
+        if (!newStatus.equalsIgnoreCase("Reported")
+                && !newStatus.equalsIgnoreCase("Responding")
+                && !newStatus.equalsIgnoreCase("Resolved")
+                && !newStatus.equalsIgnoreCase("Cancelled")) {
+            System.out.println("Invalid response status.");
+            return false;
+        }
+
+        newStatus = normalizeStatus(newStatus);
 
         String selectSql =
                 "SELECT response_status FROM emergencies "
-                + "WHERE emergency_id = ?";
+                + "WHERE emergency_id = ? FOR UPDATE";
 
         String updateSql =
-                "UPDATE emergencies SET response_status = ?, "
-                + "allocation_status = CASE "
-                + "WHEN ? = 'Resolved' OR ? = 'Cancelled' "
-                + "THEN 'Completed' ELSE allocation_status END "
+                "UPDATE emergencies SET response_status = ? "
                 + "WHERE emergency_id = ?";
 
         String historySql =
                 "INSERT INTO emergency_history "
-                + "(emergency_id, old_status, new_status, notes) "
-                + "VALUES (?, ?, ?, ?)";
+                + "(emergency_id, status, remarks) VALUES (?, ?, ?)";
 
         try (Connection con = Database.getConnection()) {
 
@@ -152,26 +193,28 @@ public class Emergency {
 
                     try (ResultSet rs = ps.executeQuery()) {
                         if (!rs.next()) {
-                            System.out.println("Emergency ID not found.");
+                            System.out.println("Emergency not found.");
                             con.rollback();
-                            return;
+                            return false;
                         }
 
                         oldStatus = rs.getString("response_status");
                     }
                 }
 
-                String normalizedStatus =
-                        newStatus.substring(0, 1).toUpperCase()
-                        + newStatus.substring(1).toLowerCase();
+                if (oldStatus.equalsIgnoreCase("Resolved")
+                        || oldStatus.equalsIgnoreCase("Cancelled")) {
+                    System.out.println(
+                            "This emergency is already closed.");
+                    con.rollback();
+                    return false;
+                }
 
                 try (PreparedStatement ps =
                              con.prepareStatement(updateSql)) {
 
-                    ps.setString(1, normalizedStatus);
-                    ps.setString(2, normalizedStatus);
-                    ps.setString(3, normalizedStatus);
-                    ps.setInt(4, emergencyId);
+                    ps.setString(1, newStatus);
+                    ps.setInt(2, emergencyId);
                     ps.executeUpdate();
                 }
 
@@ -179,9 +222,9 @@ public class Emergency {
                              con.prepareStatement(historySql)) {
 
                     ps.setInt(1, emergencyId);
-                    ps.setString(2, oldStatus);
-                    ps.setString(3, normalizedStatus);
-                    ps.setString(4, notes == null ? "" : notes);
+                    ps.setString(2, newStatus);
+                    ps.setString(3,
+                            remarks == null ? "" : remarks.trim());
                     ps.executeUpdate();
                 }
 
@@ -194,18 +237,34 @@ public class Emergency {
                 con.setAutoCommit(true);
             }
 
+            if (newStatus.equals("Resolved")
+                    || newStatus.equals("Cancelled")) {
+                Allocation.releaseResources(emergencyId);
+            }
+
+            System.out.println("Emergency status updated successfully.");
+            return true;
+
         } catch (SQLException e) {
-            System.out.println(
-                    "Could not update emergency status: " + e.getMessage()
-            );
-            return;
+            System.out.println("Could not update emergency status: "
+                    + e.getMessage());
+            return false;
         }
+    }
 
-        System.out.println("Emergency response status updated successfully.");
-
-        if (newStatus.equalsIgnoreCase("Resolved")
-                || newStatus.equalsIgnoreCase("Cancelled")) {
-            Allocation.releaseResources(emergencyId);
+    private static String normalizeStatus(String status) {
+        if (status.equalsIgnoreCase("Reported")) {
+            return "Reported";
         }
+        if (status.equalsIgnoreCase("Responding")) {
+            return "Responding";
+        }
+        if (status.equalsIgnoreCase("Resolved")) {
+            return "Resolved";
+        }
+        if (status.equalsIgnoreCase("Cancelled")) {
+            return "Cancelled";
+        }
+        return status;
     }
 }
