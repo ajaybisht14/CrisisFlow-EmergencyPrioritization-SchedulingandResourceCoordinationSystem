@@ -7,7 +7,7 @@ import java.util.Scanner;
 
 public class Emergency {
 
-    // Register a new emergency
+    
     public static boolean register(
             String type,
             String location,
