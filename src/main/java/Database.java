@@ -16,17 +16,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * Database access with a small built-in connection pool.
- *
- * Configuration (environment variables):
- *   CRISISFLOW_DB_USER      required
- *   CRISISFLOW_DB_PASSWORD  optional (empty allowed)
- *   CRISISFLOW_DB_HOST      default localhost
- *   CRISISFLOW_DB_PORT      default 3306
- *   CRISISFLOW_DB_NAME      default crisisflow_v2
- *   CRISISFLOW_DB_POOL      default 10
- */
+
 public class Database {
 
     private static final BlockingQueue<Connection> IDLE =
