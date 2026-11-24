@@ -55,7 +55,42 @@ public class Database {
             url(), user, password == null ? "" : password);
     }
 
+    /** Borrow a connection. Closing it returns it to the pool. */
+    public static Connection getConnection() throws SQLException {
+        Connection raw;
 
+        while ((raw = IDLE.poll()) != null) {
+            if (isUsable(raw)) {
+                return wrap(raw);
+            }
+            discard(raw);
+        }
+
+        if (OPEN.incrementAndGet() <= maxPool()) {
+            try {
+                return wrap(openRaw());
+            } catch (SQLException | RuntimeException e) {
+                OPEN.decrementAndGet();
+                throw e;
+            }
+        }
+        OPEN.decrementAndGet();
+
+        try {
+            raw = IDLE.poll(10, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new SQLException("Interrupted while waiting for a connection.");
+        }
+        if (raw == null) {
+            throw new SQLException("Database is busy. Please try again.");
+        }
+        if (isUsable(raw)) {
+            return wrap(raw);
+        }
+        discard(raw);
+        return getConnection();
+    }
 
     private static boolean isUsable(Connection c) {
         try {
