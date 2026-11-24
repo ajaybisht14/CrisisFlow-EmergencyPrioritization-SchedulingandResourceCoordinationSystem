@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CrisisFlow | Emergency Management</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body class="app-layout">
+
+<aside class="sidebar">
+    <a href="#dashboard" class="brand">
+        <span class="brand-icon">✚</span>
+        <span><strong>CrisisFlow</strong><small>Emergency Management</small></span>
+    </a>
+
+    <p class="nav-heading">WORKSPACE</p>
+    <nav class="side-nav">
+        <a href="#dashboard" class="nav-link active" data-section="dashboard"><span>▦</span> Dashboard</a>
+        <a href="/map.html" class="nav-link"><span>⌖</span> Live Map</a>
+        <a href="#emergencies" class="nav-link" data-section="emergencies"><span>⚠</span> Emergencies</a>
+        <a href="#resources" class="nav-link" data-section="resources"><span>▣</span> Resources</a>
+        <a href="#allocations" class="nav-link" data-section="allocations"><span>⇄</span> Allocations</a>
+        <a href="#notifications" class="nav-link" data-section="notifications"><span>🔔</span> Notifications <span class="notif-badge" id="notifBadge" hidden>0</span></a>
+        <a href="#reports" class="nav-link" data-section="reports"><span>▤</span> Reports</a>
+    </nav>
+
+    <div class="sidebar-bottom">
+        <div class="system-status">
+            <span class="status-dot"></span>
+            <span><strong>System online</strong><small>Local CrisisFlow server</small></span>
+        </div>
+        <a href="#settings" class="nav-link" data-section="settings"><span>⚙</span> Settings / Help</a>
+    </div>
+</aside>
+
+<main class="main-content">
+    <header class="page-header">
+        <div>
+            <p class="eyebrow">EMERGENCY OPERATIONS</p>
+            <h1 id="pageTitle">Dashboard</h1>
+            <p class="page-subtitle" id="pageSubtitle">Monitor incidents and coordinate response resources.</p>
+        </div>
+        <div class="header-actions">
+            <span class="clock" id="clock"></span>
+            <button id="refreshButton" type="button">⟳ Refresh Data</button>
+        </div>
+    </header>
+
+    <p id="message" class="message" role="status"></p>
+
+    <!-- DASHBOARD -->
+    <section id="dashboard" class="content-section">
+        <div class="summary-grid">
+            <article class="summary-card"><span class="icon">🚨</span><span class="label">Total emergencies</span><strong id="totalEmergencies">0</strong></article>
+            <article class="summary-card"><span class="icon">⏳</span><span class="label">Pending allocation</span><strong id="pendingEmergencies">0</strong></article>
+            <article class="summary-card"><span class="icon">🚑</span><span class="label">Available resources</span><strong id="availableResources">0</strong></article>
+            <article class="summary-card"><span class="icon">🔥</span><span class="label">Active responses</span><strong id="activeResponses">0</strong></article>
+        </div>
+        
+        <section class="panel">
+            <h2>Priority alerts</h2>
+            <div id="priorityAlerts" class="alert-list"></div>
+        </section>
+
+        <div class="two-col">
+            <section class="panel">
+                <h2>Emergencies by priority</h2>
+                <div id="priorityBars"></div>
+            </section>
+            <section class="panel">
+                <h2>Emergencies by type</h2>
+                <div id="typeBars"></div>
+            </section>
+        </div>
+
+        <section class="panel">
+            <div class="section-heading">
+                <div><h2>Recent emergencies</h2><p>Latest reports registered in the system.</p></div>
+                <button type="button" class="secondary-button" onclick="showSection('emergencies')">View all emergencies →</button>
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead><tr>
+                        <th>ID</th><th>Type</th><th>Location</th><th>People</th>
+                        <th>Priority</th><th>Allocation</th><th>Response</th><th>Assigned resources</th><th>Actions</th>
+                    </tr></thead>
+                    <tbody id="emergencyTable"></tbody>
+                </table>
+            </div>
+        </section>
+    </section>
+
+    <!-- EMERGENCIES -->
+    <section id="emergencies" class="content-section" hidden>
+        <section class="panel">
+            <h2>Register an emergency</h2>
+            <p>Type a place name — coordinates are found automatically. You can also click the map to drop a pin.</p>
+
+            <form id="emergencyForm" class="form-grid" data-geo="true">
+                <label>Emergency type
+                    <select name="disasterType" required>
+                        <option value="">Choose type</option>
+                        <option>Flood</option><option>Earthquake</option><option>Fire</option>
+                        <option>Landslide</option><option>Major Accident</option>
+                    </select>
+                </label>
+
+                <label>People affected
+                    <input name="peopleAffected" type="number" min="1" required placeholder="e.g. 25">
+                </label>
+
+                <label class="full-width">Location (place name)
+                    <input name="location" required placeholder="e.g. Clock Tower, Dehradun">
+                    <span class="field-status" data-status></span>
+                </label>
+
+                <label>Latitude (auto)
+                    <input name="latitude" type="number" step="any" readonly placeholder="auto-filled">
+                </label>
+                <label>Longitude (auto)
+                    <input name="longitude" type="number" step="any" readonly placeholder="auto-filled">
+                </label>
+
+                <div class="full-width"><div class="picker-map" data-picker></div></div>
+
+                <label class="full-width">Description
+                    <textarea name="description" placeholder="Details of the incident"></textarea>
+                </label>
+
+                <button type="submit">Register emergency</button>
+            </form>
+        </section>
+
+        <section class="panel">
+            <div class="section-heading">
+                <h2>All emergency records</h2>
+                <button class="js-allocate" id="allocateButton" type="button">⚡ Re-run allocation now</button>
+            </div>
+            <div class="table-tools">
+                <input id="emSearch" type="search" placeholder="🔍 Search type or location…">
+                <select id="emPriority">
+                    <option value="">All priorities</option>
+                    <option>CRITICAL</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option>
+                </select>
+                <select id="emStatus">
+                    <option value="">All statuses</option>
+                    <option>Reported</option><option>Responding</option><option>Resolved</option><option>Cancelled</option>
+                </select>
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead><tr>
+                        <th>ID</th><th>Type</th><th>Location</th><th>People</th>
+                        <th>Priority</th><th>Allocation</th><th>Response</th><th>Assigned resources</th><th>Actions</th>
+                    </tr></thead>
+                    <tbody id="emergencyTableAll"></tbody>
+                </table>
+            </div>
+        </section>
+    </section>
+
+    <!-- RESOURCES -->
+    <section id="resources" class="content-section" hidden>
+        <section class="panel">
+            <h2>Add a response resource</h2>
+            <p>Search the base location by name — latitude and longitude fill in automatically.</p>
+            <form id="resourceForm" class="form-grid" data-geo="true">
+                <label>Resource name
+                    <input name="resourceName" required placeholder="Ambulance 2">
+                </label>
+                <label>Resource type
+                    <select name="typeId" required>
+                        <option value="">Choose type</option>
+                        <option value="1">🚑 Ambulance</option>
+                        <option value="2">🪢 Rescue Team</option>
+                        <option value="3">⚕️ Medical Team</option>
+                        <option value="4">🚒 Fire Unit</option>
+                    </select>
+                </label>
+                <label>Capacity
+                    <input name="capacity" type="number" min="1" value="1" required>
+                </label>
+
+                <label class="full-width">Base location (place name)
+                    <input name="location" required placeholder="e.g. Doon Hospital, Dehradun">
+                    <span class="field-status" data-status></span>
+                </label>
+
+                <label>Latitude (auto)
+                    <input name="latitude" type="number" step="any" readonly placeholder="auto-filled">
+                </label>
+                <label>Longitude (auto)
+                    <input name="longitude" type="number" step="any" readonly placeholder="auto-filled">
+                </label>
+
+                <div class="full-width"><div class="picker-map" data-picker></div></div>
+
+                <button type="submit">Add resource</button>
+            </form>
+        </section>
+
+        <section class="panel">
+            <h2>Resource inventory</h2>
+            <div class="cards" id="resourceCards"></div>
+            <div class="table-wrapper" style="margin-top:18px">
+                <table>
+                    <thead><tr>
+                        <th>ID</th><th>Name</th><th>Type</th><th>Capacity</th>
+                        <th>Location</th><th>Status</th><th>Assigned to</th><th>Actions</th>
+                    </tr></thead>
+                    <tbody id="resourceTable"></tbody>
+                </table>
+            </div>
+        </section>
+    </section>
+
+    <!-- ALLOCATIONS -->
+    <section id="allocations" class="content-section" hidden>
+        <section class="panel">
+            <div class="section-heading">
+                <div>
+                    <h2>Automatic resource allocation</h2>
+                    <p>Resources are assigned automatically whenever an emergency is reported, a resource is added or freed, and every 30 seconds. Nearest available units go to the most urgent emergencies first.</p>
+                </div>
+                <button class="js-allocate" type="button">⚡ Re-run allocation now</button>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2>🎯 Smart reassignment opportunities</h2>
+            <p>Resources that could reach a nearby emergency faster. System automatically suggests reassignments based on proximity and priority.</p>
+            <div id="reassignmentOpportunities" class="reassignment-list"></div>
+        </section>
+
+        <section class="panel">
+            <h2>Waiting for resources</h2>
+            <p>Emergencies that still need units. They are served automatically as soon as matching resources become available.</p>
+            <div id="unmetList" class="unmet-list"></div>
+        </section>
+
+        <section class="panel">
+            <h2>Assignments</h2>
+            <div class="table-wrapper">
+                <table>
+                    <thead><tr>
+                        <th>Emergency</th><th>Resource</th><th>Type</th><th>Distance</th>
+                        <th>Est. ETA</th><th>Status</th><th>Assigned at</th>
+                    </tr></thead>
+                    <tbody id="allocationTable"></tbody>
+                </table>
+            </div>
+            <p class="hint">ETA is a rough estimate (straight-line distance at 40 km/h), not live GPS.</p>
+        </section>
+    </section>
+
+    <!-- NOTIFICATIONS -->
+    <section id="notifications" class="content-section" hidden>
+        <section class="panel">
+            <div class="section-heading">
+                <div><h2>Notifications</h2><p>System alerts and response completion events.</p></div>
+                <button type="button" class="secondary-button" onclick="markAllNotificationsRead()">Mark all as read</button>
+            </div>
+            <div id="notificationList" class="notification-list"></div>
+        </section>
+    </section>
+
+    <!-- REPORTS -->
+    <section id="reports" class="content-section" hidden>
+        <section class="panel">
+            <h2>Operational summary</h2>
+            <p>These figures are calculated from the currently loaded records.</p>
+            <div id="reportSummary" class="summary-grid" style="margin-top:18px"></div>
+            <button type="button" onclick="refreshDashboard()">Refresh report</button>
+        </section>
+        
+        <section class="panel">
+            <h2>Response metrics</h2>
+            <p>Waiting times and response performance for active emergencies.</p>
+            <div id="metricsTable" class="table-wrapper"></div>
+        </section>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="settings" class="content-section" hidden>
+        <section class="panel">
+            <h2>System information</h2>
+            <p><strong>Application:</strong> CrisisFlow</p>
+            <p><strong>Backend:</strong> Java HTTP server</p>
+            <p><strong>Database:</strong> MySQL — crisisflow_v2</p>
+            <p><strong>Place search:</strong> OpenStreetMap Nominatim (needs internet)</p>
+            <p><strong>Dashboard refresh:</strong> Every 15 seconds</p>
+            <p><strong>Allocation:</strong> Automatic (on every change + every 30 seconds)</p>
+            <p><strong>Deleting:</strong> Resources and emergencies are soft-deleted, so history is kept.</p>
+            <p>This prototype displays records stored in its database. It does not receive real emergency-service feeds or live ambulance GPS positions.</p>
+        </section>
+    </section>
+</main>
+
+<div class="toast-stack" id="toasts"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/geo.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

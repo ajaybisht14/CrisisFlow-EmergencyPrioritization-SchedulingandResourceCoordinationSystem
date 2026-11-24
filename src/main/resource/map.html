@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CrisisFlow | Live Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body class="app-layout">
+<aside class="sidebar">
+    <a href="/" class="brand">
+        <span class="brand-icon">✚</span>
+        <span><strong>CrisisFlow</strong><small>Emergency Management</small></span>
+    </a>
+    <p class="nav-heading">WORKSPACE</p>
+    <nav class="side-nav">
+        <a href="/#dashboard" class="nav-link"><span>▦</span> Dashboard</a>
+        <a href="/map.html" class="nav-link active"><span>⌖</span> Live Map</a>
+        <a href="/#emergencies" class="nav-link"><span>⚠</span> Emergencies</a>
+        <a href="/#resources" class="nav-link"><span>▣</span> Resources</a>
+        <a href="/#allocations" class="nav-link"><span>⇄</span> Allocations</a>
+        <a href="/#reports" class="nav-link"><span>▤</span> Reports</a>
+    </nav>
+</aside>
+
+<main class="main-content">
+    <header class="page-header">
+        <div>
+            <p class="eyebrow">LIVE VIEW</p>
+            <h1>Emergency Map</h1>
+            <p class="page-subtitle" id="mapMessage" role="status">Loading map data…</p>
+        </div>
+        <div class="header-actions">
+            <button onclick="refreshMap()">⟳ Refresh map</button>
+            <button onclick="showAllMarkers()">⤢ Show all</button>
+        </div>
+    </header>
+
+    <section class="panel">
+        <div class="map-toolbar">
+            <label class="chip"><input type="checkbox" id="toggleEmergencies" checked> 🚨 Emergencies</label>
+            <label class="chip"><input type="checkbox" id="toggleResources" checked> 🚑 Resources</label>
+            <label class="chip"><input type="checkbox" id="toggleResolved" checked> ✅ Resolved</label>
+        </div>
+
+        <div class="map-shell">
+            <div class="map-search">
+                <input id="placeSearch" type="search" placeholder="🔍 Search any place by name…" autocomplete="off">
+            </div>
+            <div id="map"></div>
+        </div>
+
+        <div class="legend">
+            <span><i class="dot red"></i>Active emergency</span>
+            <span><i class="dot green"></i>Resolved emergency</span>
+            <span><i class="dot blue"></i>Available resource</span>
+            <span><i class="dot orange"></i>Busy / unavailable resource</span>
+        </div>
+    </section>
+    <section class="panel" style="margin-top:18px">
+        <div class="panel-heading"><div><p class="eyebrow">SYSTEM EVENTS</p><h2>Notifications <span id="unreadCount">(loading)</span></h2></div><button onclick="refreshNotifications()">Refresh</button></div>
+        <div id="notificationsList" aria-live="polite">Loading notifications…</div>
+    </section>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/geo.js"></script>
+<script src="/map.js"></script>
+</body>
+</html>
