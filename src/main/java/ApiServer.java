@@ -362,24 +362,7 @@ public class ApiServer {
         } catch (NumberFormatException | NullPointerException e) { sendJson(ex,400,Map.of("error","Required numeric query parameters: fromLat, fromLon, toLat, toLon")); }
     }
 
-    private void handleTracking(HttpExchange ex) throws Exception {
-        if (is(ex,"POST")) {
-            JsonObject b=readBody(ex); int id=Json.requireInt(b,"resourceId"); double lat=Json.requireDouble(b,"latitude"), lon=Json.requireDouble(b,"longitude");
-            if(!Double.isFinite(lat)||lat < -90||lat>90||!Double.isFinite(lon)||lon < -180||lon>180) throw new IllegalArgumentException("Coordinates out of range");
-            try(Connection c=Database.getConnection()) {
-                try(PreparedStatement p=c.prepareStatement("SELECT resource_id FROM resources WHERE resource_id=? AND is_deleted=0")){p.setInt(1,id);try(ResultSet r=p.executeQuery()){if(!r.next()){sendJson(ex,404,Map.of("error","Resource not found"));return;}}}
-                try(PreparedStatement p=c.prepareStatement("INSERT INTO resource_locations(resource_id,latitude,longitude,tracking_status) VALUES(?,?,?,'ACTIVE')")){p.setInt(1,id);p.setDouble(2,lat);p.setDouble(3,lon);p.executeUpdate();}
-                try(PreparedStatement p=c.prepareStatement("UPDATE resources SET latitude=?,longitude=? WHERE resource_id=?")){p.setDouble(1,lat);p.setDouble(2,lon);p.setInt(3,id);p.executeUpdate();}
-            }
-            sendJson(ex,201,Map.of("message","Location accepted","resourceId",id,"trackingStatus","ACTIVE")); return;
-        }
-        if (is(ex,"GET")) {
-            List<Map<String,Object>> rows=new ArrayList<>();
-            try(Connection c=Database.getConnection();PreparedStatement p=c.prepareStatement("SELECT l.resource_id,r.resource_name,l.latitude,l.longitude,l.reported_at,l.tracking_status FROM resource_locations l JOIN resources r ON r.resource_id=l.resource_id JOIN (SELECT resource_id,MAX(location_id) id FROM resource_locations GROUP BY resource_id) x ON x.id=l.location_id WHERE r.is_deleted=0 ORDER BY l.reported_at DESC");ResultSet rs=p.executeQuery()) { while(rs.next()){rows.add(mapOf("resourceId",rs.getInt(1),"resourceName",rs.getString(2),"latitude",rs.getDouble(3),"longitude",rs.getDouble(4),"reportedAt",rs.getTimestamp(5).toInstant().toString(),"trackingStatus",rs.getString(6)));} }
-            sendJson(ex,200,rows); return;
-        }
-        sendJson(ex,405,Map.of("error","Method not allowed"));
-    }
+
 
     private void handleNotifications(HttpExchange ex) throws Exception {
         if(is(ex,"GET")){ List<Map<String,Object>> ns=NotificationService.list(); long unread=ns.stream().filter(n->Boolean.FALSE.equals(n.get("isRead"))).count(); sendJson(ex,200,mapOf("unreadCount",unread,"notifications",ns)); return; }
