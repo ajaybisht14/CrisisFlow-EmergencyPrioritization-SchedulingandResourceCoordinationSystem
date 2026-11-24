@@ -231,47 +231,8 @@ public class Database {
         }
     }
 
-    /**
-     * Some databases were created with a CHECK constraint that only allows
-     * the old allocation_status values. The allocator also uses 'Partial',
-     * so widen such a constraint (only when it concerns that column alone).
-     */
-    private static void allowPartialAllocationStatus(Connection con)
-            throws SQLException {
 
-        String sql = """
-            SELECT tc.CONSTRAINT_NAME, cc.CHECK_CLAUSE
-            FROM information_schema.TABLE_CONSTRAINTS tc
-            JOIN information_schema.CHECK_CONSTRAINTS cc
-              ON cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
-             AND cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
-            WHERE tc.TABLE_SCHEMA = DATABASE()
-              AND tc.TABLE_NAME = 'emergencies'
-              AND tc.CONSTRAINT_TYPE = 'CHECK'
-            """;
 
-        List<String> toWiden = new java.util.ArrayList<>();
-        try (PreparedStatement ps = con.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                String name = rs.getString(1);
-                String clause = rs.getString(2).toLowerCase();
-                if (!clause.contains("allocation_status")
-                        || clause.contains("'partial'")) {
-                    continue;
-                }
-                if (clause.contains("response_status")
-                        || clause.contains("priority")
-                        || clause.contains("people_affected")
-                        || clause.contains("disaster_type")) {
-                    System.out.println("Warning: CHECK constraint " + name
-                        + " mixes columns and does not allow 'Partial'; "
-                        + "edit it by hand.");
-                    continue;
-                }
-                toWiden.add(name);
-            }
-        }
 
         for (String name : toWiden) {
             try (Statement st = con.createStatement()) {
