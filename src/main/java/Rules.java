@@ -55,11 +55,5 @@ public class Rules {
         return "LOW";
     }
 
-    public static boolean isValidCoordinate(
-            double latitude, double longitude) {
-        return Double.isFinite(latitude)
-            && Double.isFinite(longitude)
-            && latitude >= -90 && latitude <= 90
-            && longitude >= -180 && longitude <= 180;
-    }
+
 }
