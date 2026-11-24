@@ -39,7 +39,21 @@ public class Rules {
         };
     }
 
+    public static String calculatePriority(String type, int people) {
+        if (people >= 50) {
+            return "CRITICAL";
+        }
 
+        if (people >= 10) {
+            return "HIGH";
+        }
+
+        if (SEVERE_TYPES.contains(normalizeEmergencyType(type))) {
+            return "MEDIUM";
+        }
+
+        return "LOW";
+    }
 
     public static boolean isValidCoordinate(
             double latitude, double longitude) {
